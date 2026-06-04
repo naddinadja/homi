@@ -2,6 +2,7 @@
 #define HOMIC_H
 
 #include <libxal.h>
+#include <libxnvme.h>
 
 /**
  * Connect to the homid daemon.
@@ -37,6 +38,25 @@ homic_disconnect();
  */
 int
 homic_connect_xal(char *dev_uri, struct xal **out);
+
+/**
+ * Open a device as an xNVMe secondary process.
+ *
+ * Queries the daemon for the backend used to open the device, then opens it
+ * as a secondary process with xnvme_dev_open(). The returned handle can be
+ * used with xnvme_queue_init() and related functions for I/O submission. The
+ * device is closed automatically on homic_disconnect().
+ *
+ * Requires an active connection established with homic_connect().
+ *
+ * @param dev_uri  URI of the device to open.
+ * @param be       xNVMe backend name (e.g. "upcie", "upcie-cuda"). Must match
+ *                 the backend the daemon opened the device with.
+ * @param out      Output: xNVMe device handle.
+ * @return         0 on success, negative errno on failure.
+ */
+int
+homic_connect_xnvme(char *dev_uri, char *be, struct xnvme_dev **out);
 
 /**
  * Wait until the xal pools are not being reindexed.
