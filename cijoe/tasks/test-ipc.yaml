@@ -2,8 +2,11 @@ doc: |
   Test for the IPC of HOMI
   ========================
 
-  This task assumes you have the two keys, "device.uri" and "data.test_file"
-  defined. For example:
+  This task assumes you have the following keys defined, "xal.backend",
+  "device.{uri, be}", and "data.test_file". For example:
+
+    [xal]
+    backend = 2
 
     [device]
     uri = "/dev/nvme0n1"
@@ -16,6 +19,7 @@ doc: |
 steps:
 - name: precondition
   run: |
+    cd ~/git/xnvme; make clean config build install;
     cd ~/git/xal; make;
     cd ~/git/homi; make;
     sed -i 's|devices = \[\]|devices = [ { uri = "{{ config.device.uri }}", nsid = 1} ]|' /etc/homi/homi.conf
@@ -24,11 +28,17 @@ steps:
     sed -i 's|shm_id = 67|shm_id = {{ config.device.shm_id }}|' /etc/homi/homi.conf
     sed -i 's|watchmode = 2|watchmode = 0|' /etc/homi/homi.conf
 
-- name: transfer
+- name: transfer1
   uses: core.put
   with:
     src: "{{ local.env.HOME }}/git/homi/cijoe/auxilliary/test-connect-xal.c"
-    dst: "/tmp/test.c"
+    dst: "/tmp/test-connect-xal.c"
+
+- name: transfer2
+  uses: core.put
+  with:
+    src: "{{ local.env.HOME }}/git/homi/cijoe/auxilliary/test-connect-xnvme.c"
+    dst: "/tmp/test-connect-xnvme.c"
 
 - name: start
   run: |
@@ -37,8 +47,13 @@ steps:
 
 - name: test_xal
   run: |
-    gcc /tmp/test.c -o /tmp/test -lhomic -lxal; \
+    gcc /tmp/test-connect-xal.c -o /tmp/test -lhomic -lxal
     /tmp/test {{ config.device.uri }} {{ config.data.test_file }}
+
+- name: test_xnvme
+  run: |
+    gcc /tmp/test-connect-xnvme.c -o /tmp/test -lhomic -lxal -lxnvme
+    /tmp/test {{ config.device.uri }} {{ config.device.be }} {{ config.device.shm_id }} 42
 
 - name: stop
   run: |
