@@ -2,7 +2,7 @@
  * Test for the HOMI IPC.
  * 
  * Compile and test with 
- * gcc homi-ipc-test.c -o homi-ipc-test -lhomic -lxal; ./homi-ipc-test /dev/nvme0n1 /mnt/datasets/imagenetish/class496/class496_00000903.bin
+ * gcc test-connect-xal.c -o test-connect-xal -lhomic -lxal; ./test-connect-xal /dev/nvme0n1 /mnt/datasets/imagenetish/class496/class496_00000903.bin
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,12 +45,6 @@ test_xal(const char *dev_uri, const char *path)
     goto exit;
   }
 
-  err = xal_build_lookup_hashmap(xal);
-  if (err) {
-    printf("FAIL xal_build_lookup_hashmap(): %d\n", err);
-    goto exit;
-  }
-
   err = xal_get_inode(xal, (char *)path, &inode);
   if (err) {
     printf("FAIL xal_get_inode(%s): %d\n", path, err);
@@ -65,6 +59,7 @@ test_xal(const char *dev_uri, const char *path)
     xal_walk(xal, inode, walker, NULL);
   }
 
+  return 0;
 exit:
   return err;
 }
