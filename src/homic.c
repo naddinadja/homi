@@ -119,7 +119,8 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 	struct homi_msg_header hdr = {0};
 	struct homi_req_xal_connect req = {0};
 	struct homi_res_xal_connect *res = NULL;
-	struct xal **new_xal;
+	struct xal **tmp_xals;
+	struct xal *cand;
 	char shm_name[64];
 	size_t new_count;
 	int sock_fd = -1, err;
@@ -151,6 +152,11 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 		fprintf(stderr, "Failed: homi_proto_socket_read(); err(%d)\n", err);
 		goto exit;
 	}
+	if (!res) {
+		err = -EIO;
+		fprintf(stderr, "Failed: homi_proto_socket_read(): empty response\n");
+		goto exit;
+	}
 	if (res->err) {
 		err = res->err;
 		fprintf(stderr, "Failed: daemon xal_connect error; err(%d)\n", err);
@@ -163,22 +169,25 @@ homic_connect_xal(char *dev_uri, struct xal **out)
 	/* Copy out of shm before any further operations touch the segment. */
 	memcpy(shm_name, res->shm_name, sizeof(shm_name));
 
-	err = xal_from_shm(shm_name, out);
+	err = xal_from_shm(shm_name, &cand);
 	if (err) {
 		fprintf(stderr, "Failed: xal_from_shm(); err(%d)\n", err);
 		goto exit;
 	}
 
 	new_count = g_homic_client->xal_count + 1;
-	new_xal = realloc(g_homic_client->xals, new_count * sizeof(*g_homic_client->xals));
-	if (!new_xal) {
+	tmp_xals = realloc(g_homic_client->xals, new_count * sizeof(*g_homic_client->xals));
+	if (!tmp_xals) {
 		err = -ENOMEM;
+		xal_close(cand);
 		goto exit;
 	}
 
-	new_xal[new_count - 1] = *out;
-	g_homic_client->xals = new_xal;
+	tmp_xals[new_count - 1] = cand;
+	g_homic_client->xals = tmp_xals;
 	g_homic_client->xal_count = new_count;
+
+	*out = cand;
 
 exit:
 	free(res);
