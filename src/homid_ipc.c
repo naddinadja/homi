@@ -97,6 +97,44 @@ homid_ipc_close(struct homid_ipc_connection *conn)
 	}
 }
 
+static void
+_handle_xal_connect(int sock_fd, struct homi_msg_header *hdr, void *payload, struct homid *homid)
+{
+	struct homi_req_xal_connect *req = (struct homi_req_xal_connect *)payload;
+	struct homi_res_xal_connect res = {0};
+	struct homid_dev *dev = NULL;
+	int err;
+
+	if (!req) {
+		homid_log(LOG_ERR, "Error: Payload required for XAL_CONNECT request");
+		res.err = -EINVAL;
+		goto send_response;
+	}
+
+	dev = homid_dev_get(homid, req->dev_uri);
+
+	if (!dev) {
+		homid_log(LOG_ERR, "XAL_CONNECT: device not found: %s", req->dev_uri);
+		res.err = -ENODEV;
+		goto send_response;
+	}
+
+	err = homid_dev_xal_index(dev);
+	if (err) {
+		homid_log(LOG_ERR, "Failed: homid_dev_xal_index()");
+		res.err = err;
+		goto send_response;
+	}
+
+	memcpy(res.shm_name, dev->homid_xal.shm_name, sizeof(res.shm_name));
+
+send_response:
+	err = homi_proto_socket_write(sock_fd, hdr, &res, sizeof(res));
+	if (err) {
+		homid_log(LOG_ERR, "Failed: homi_proto_socket_write(); err(%d)", err);
+	}
+}
+
 static void *
 worker(void *arg)
 {
@@ -117,39 +155,7 @@ worker(void *arg)
 
 	switch ((enum homi_msg_type)hdr.type) {
 	case HOMI_MSG_TYPE_XAL_CONNECT:
-		struct homi_req_xal_connect *req = (struct homi_req_xal_connect *)payload;
-		struct homi_res_xal_connect res = {0};
-		struct homid_dev *dev = NULL;
-
-		if (!req) {
-			homid_log(LOG_ERR, "Error: Payload required for XAL_CONNECT request");
-			res.err = -EINVAL;
-			goto send_response;
-		}
-
-		dev = homid_dev_get(homid, req->dev_uri);
-
-		if (!dev) {
-			homid_log(LOG_ERR, "XAL_CONNECT: device not found: %s", req->dev_uri);
-			res.err = -ENODEV;
-			goto send_response;
-		}
-
-		err = homid_dev_xal_index(dev);
-		if (err) {
-			homid_log(LOG_ERR, "Failed: homid_dev_xal_index()");
-			res.err = err;
-			goto send_response;
-		}
-
-		memcpy(res.shm_name, dev->homid_xal.shm_name, sizeof(res.shm_name));
-
-send_response:
-		err = homi_proto_socket_write(sock_fd, &hdr, &res, sizeof(res));
-		if (err) {
-			homid_log(LOG_ERR, "Failed: homi_proto_socket_write(); err(%d)", err);
-		}
-
+		_handle_xal_connect(sock_fd, &hdr, payload, homid);
 		break;
 
 	default:
