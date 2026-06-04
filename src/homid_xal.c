@@ -78,13 +78,13 @@ close_xal:
 }
 
 int
-homid_xnvme_setup(char *uri, struct xnvme_dev **device)
+homid_xnvme_setup(char *uri, const char *be, struct xnvme_dev **device)
 {
 	struct xnvme_opts opts = xnvme_opts_default();
 	struct xnvme_dev *dev;
 	int err;
 
-	opts.be = "linux";
+	opts.be = be;
 	dev = xnvme_dev_open(uri, &opts);
 	if (!dev) {
 		err = -errno;
@@ -138,13 +138,13 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices)
 	}
 
 	for (unsigned int i = 0; i < ndevs; i++) {
-		char *uri = opts->dev_uris[i];
+		char *uri = opts->devs[i].uri;
+		char *be = opts->devs[i].be;
 
-		strncpy(devs[i].uri, uri, sizeof(devs[i].uri) - 1);
 		snprintf(devs[i].shm_name, sizeof(devs[i].shm_name), "/homid_dev%u", i);
 		xal_opts->shm_name = devs[i].shm_name;
 
-		err = homid_xnvme_setup(uri, &devs[i].dev);
+		err = homid_xnvme_setup(uri, be, &devs[i].dev);
 		if (err) {
 			homid_log(LOG_ERR, "Failed to setup xNVMe for %s: %d", uri, err);
 			goto failed;
@@ -171,7 +171,27 @@ homid_device_get(struct homid *homid, char *uri)
 	struct homid_device *found = NULL;
 
 	for (unsigned int i = 0; i < homid->ndevs; i++) {
-		if (!strcmp(homid->dev[i].uri, uri)) {
+		const struct xnvme_ident *ident = xnvme_dev_get_ident(homid->dev[i].dev);
+
+		if (!strcmp(ident->uri, uri)) {
+			found = &homid->dev[i];
+			break;
+		}
+	}
+
+	return found;
+}
+
+struct homid_device *
+homid_device_get_be(struct homid *homid, char *uri, char *be)
+{
+	struct homid_device *found = NULL;
+
+	for (unsigned int i = 0; i < homid->ndevs; i++) {
+		const struct xnvme_ident *ident = xnvme_dev_get_ident(homid->dev[i].dev);
+		const struct xnvme_opts *dev_opts = xnvme_dev_get_opts(homid->dev[i].dev);
+
+		if (!strcmp(ident->uri, uri) && dev_opts->be && !strcmp(dev_opts->be, be)) {
 			found = &homid->dev[i];
 			break;
 		}

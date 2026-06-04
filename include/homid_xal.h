@@ -12,7 +12,6 @@ struct homid_device {
 	struct xnvme_dev *dev;
 	struct xal *xal;
 	bool watching;
-	char uri[HOMID_DEVURI_MAXLEN];
 	char shm_name[64];
 };
 
@@ -33,14 +32,14 @@ homid_xal_setup(struct xal_opts *opts, struct homid_device *device);
  * Setup xnvme for the homid_device
  *
  * For the given homid_device, initialize xnvme.
- * Uses default xnvme_opts with "linux" as backend.
  *
  * @param uri		URI of the device.
+ * @param be		xNVMe backend name (e.g. "linux", "upcie").
  * @param device	Output: device to setup.
  * @return			0 on success, negative errno on failure.
  */
 int
-homid_xnvme_setup(char *uri, struct xnvme_dev **device);
+homid_xnvme_setup(char *uri, const char *be, struct xnvme_dev **device);
 
 /**
  * Cleans up array of homid_device
@@ -70,6 +69,9 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices);
 /**
  * Get a pointer to the homid_device from a given device URI
  *
+ * Returns the first device whose URI matches. Use when backend does not matter
+ * (e.g. xal lookups where the same shared memory is exported for all backends).
+ *
  * @param homid   Daemon state
  * @param uri     Device URI
  * @return        A pointer to the first homid_device with a matching URI, NULL if
@@ -77,5 +79,20 @@ homid_device_setup(struct homid_opts *opts, struct homid_device **devices);
  */
 struct homid_device *
 homid_device_get(struct homid *homid, char *uri);
+
+/**
+ * Get a pointer to the homid_device matching both URI and backend
+ *
+ * Use when the caller needs a specific backend instance, e.g. for xNVMe
+ * secondary attach where the secondary must use the same backend as the primary.
+ *
+ * @param homid   Daemon state
+ * @param uri     Device URI
+ * @param be      xNVMe backend name
+ * @return        A pointer to the homid_device matching both uri and be, NULL if
+ *                none is found.
+ */
+struct homid_device *
+homid_device_get_be(struct homid *homid, char *uri, char *be);
 
 #endif /* HOMID_XAL_H */

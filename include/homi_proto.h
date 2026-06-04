@@ -7,6 +7,7 @@
 
 #define HOMI_MAX_CONNECTS   8
 #define HOMID_DEVURI_MAXLEN 256
+#define HOMID_DEV_BE_MAXLEN 32
 
 enum homi_msg_type {
 	HOMI_MSG_TYPE_XAL_CONNECT = 1, ///< Request xal pool info for a device

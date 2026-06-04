@@ -16,7 +16,7 @@ steps:
   run: | 
     cd ~/git/xal; git pull; make;
     cd ~/git/homi; git pull --rebase; make;
-    sed -i 's|devices = \[ \]|devices = [ "{{ config.device.uri }}" ]|' /etc/homi/homi.conf
+    sed -i 's|devices = \[\]|devices = [ "{{ config.device.uri }}" ]|' /etc/homi/homi.conf
     sed -i 's|log_level = 2|log_level = 4|' /etc/homi/homi.conf
 
 - name: transfer

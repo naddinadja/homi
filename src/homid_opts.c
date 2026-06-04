@@ -74,8 +74,8 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 	}
 
 	opts->ndevs = devices.u.arr.size;
-	opts->dev_uris = malloc(devices.u.arr.size * sizeof(*opts->dev_uris));
-	if (!opts->dev_uris) {
+	opts->devs = malloc(devices.u.arr.size * sizeof(*opts->devs));
+	if (!opts->devs) {
 		err = -errno;
 		homid_log(LOG_ERR, "Failed: malloc(); errno(%d)", errno);
 		goto exit;
@@ -83,14 +83,32 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 
 	for (int i = 0; i < devices.u.arr.size; i++) {
 		toml_datum_t elem = devices.u.arr.elem[i];
+		toml_datum_t uri_datum, be_datum;
 
-		if (elem.type != TOML_STRING) {
-			homid_log(LOG_ERR, "Invalid device URI: not a string");
+		if (elem.type != TOML_TABLE) {
+			homid_log(LOG_ERR, "Invalid device entry %d: expected a table with 'uri' and 'be'", i);
 			err = -EINVAL;
 			goto exit;
 		}
 
-		strcpy(opts->dev_uris[i], elem.u.s);
+		uri_datum = toml_get(elem, "uri");
+		if (uri_datum.type != TOML_STRING) {
+			homid_log(LOG_ERR, "Invalid device entry %d: missing or invalid 'uri'", i);
+			err = -EINVAL;
+			goto exit;
+		}
+
+		be_datum = toml_get(elem, "be");
+		if (be_datum.type != TOML_STRING) {
+			homid_log(LOG_WARNING, "Device %d: missing or invalid 'be', defaulting to 'linux'", i);
+		}
+
+		strncpy(opts->devs[i].uri, uri_datum.u.s, sizeof(opts->devs[i].uri) - 1);
+		if (be_datum.type == TOML_STRING) {
+			strncpy(opts->devs[i].be, be_datum.u.s, sizeof(opts->devs[i].be) - 1);
+		} else {
+			strncpy(opts->devs[i].be, "linux", sizeof(opts->devs[i].be) - 1);
+		}
 	}
 
 	ipc_socket = toml_seek(result.toptab, "ipc_socket");

@@ -149,7 +149,7 @@ exit:
 	homid_close(homid);
 	free(homid);
 	closelog();
-	free(opts.dev_uris);
+	free(opts.devs);
 
 	return err;
 }
