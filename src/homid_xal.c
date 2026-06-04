@@ -85,11 +85,17 @@ homid_xnvme_setup(char *uri, const char *be, struct xnvme_dev **device)
 	int err;
 
 	opts.be = be;
+	opts.shm_id = 42;
+
 	dev = xnvme_dev_open(uri, &opts);
 	if (!dev) {
 		err = -errno;
 		homid_log(LOG_ERR, "xnvme_dev_open(): %d", err);
 		return err;
+	}
+
+	if (!xnvme_dev_get_geo(dev)) {
+		homid_log(LOG_WARNING, "xnvme_dev_get_geo(): identify data unavailable for secondaries");
 	}
 
 	*device = dev;

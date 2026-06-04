@@ -130,6 +130,32 @@ send_response:
 	}
 }
 
+static void
+_handle_xnvme_connect(int sock_fd, struct homi_msg_header *hdr, void *payload, struct homid *homid)
+{
+	struct homi_req_xnvme_connect *req = (struct homi_req_xnvme_connect *)payload;
+	struct homi_res_xnvme_connect res = {0};
+	int err;
+
+	if (!req) {
+		homid_log(LOG_ERR, "Error: Payload required for XNVME_CONNECT request");
+		res.err = -EINVAL;
+		goto send_response;
+	}
+
+	if (!homid_device_get_be(homid, req->dev_uri, req->be)) {
+		homid_log(LOG_ERR, "XNVME_CONNECT: device not found: %s be=%s", req->dev_uri, req->be);
+		res.err = -ENODEV;
+		goto send_response;
+	}
+
+send_response:
+	err = homi_proto_socket_write(sock_fd, hdr, &res, sizeof(res));
+	if (err) {
+		homid_log(LOG_ERR, "Failed: homi_proto_socket_write(); err(%d)", err);
+	}
+}
+
 static void *
 worker(void *arg)
 {
@@ -151,6 +177,10 @@ worker(void *arg)
 	switch ((enum homi_msg_type)hdr.type) {
 	case HOMI_MSG_TYPE_XAL_CONNECT:
 		_handle_xal_connect(sock_fd, &hdr, payload, homid);
+		break;
+
+	case HOMI_MSG_TYPE_XNVME_CONNECT:
+		_handle_xnvme_connect(sock_fd, &hdr, payload, homid);
 		break;
 
 	default:

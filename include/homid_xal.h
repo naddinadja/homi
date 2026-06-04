@@ -31,7 +31,8 @@ homid_xal_setup(struct xal_opts *opts, struct homid_device *device);
 /**
  * Setup xnvme for the homid_device
  *
- * For the given homid_device, initialize xnvme.
+ * For the given homid_device, initialize xnvme as the primary process.
+ * Calls xnvme_dev_get_geo() after opening to publish identify data for secondaries.
  *
  * @param uri		URI of the device.
  * @param be		xNVMe backend name (e.g. "linux", "upcie").
