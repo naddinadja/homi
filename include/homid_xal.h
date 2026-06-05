@@ -1,6 +1,7 @@
 #ifndef HOMID_XAL_H
 #define HOMID_XAL_H
 
+#include <stdatomic.h>
 #include <stdbool.h>
 
 #include <homi_proto.h>
@@ -8,10 +9,17 @@
 
 struct homid;
 
+enum homid_xal_watchstate {
+	HOMID_XAL_WATCHSTATE_NONE = 0, ///< Will not listen for file changes
+	HOMID_XAL_WATCHSTATE_IDLE = 1, ///< Will listen for file changes, but is not started
+	HOMID_XAL_WATCHSTATE_WATCHING = 2, ///< Is actively listening for file changes.
+};
+
 struct homid_device {
 	struct xnvme_dev *dev;
 	struct xal *xal;
-	bool watching;
+	enum homid_xal_watchstate watchstate;
+	_Atomic bool indexed;
 	char shm_name[64];
 };
 
@@ -95,5 +103,8 @@ homid_device_get(struct homid *homid, char *uri);
  */
 struct homid_device *
 homid_device_get_be(struct homid *homid, char *uri, char *be);
+
+void
+_on_xal_dirty(struct xal *xal, void *cb_args);
 
 #endif /* HOMID_XAL_H */

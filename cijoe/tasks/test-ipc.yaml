@@ -41,7 +41,6 @@ steps:
 - name: start
   run: |
     cd ~/git/homi; make start; make log;
-    sleep 10 # allow daemon to xal_index()
 
 - name: test_xal
   run: |

@@ -105,6 +105,7 @@ _handle_xal_connect(int sock_fd, struct homi_msg_header *hdr, void *payload, str
 	struct homi_req_xal_connect *req = (struct homi_req_xal_connect *)payload;
 	struct homi_res_xal_connect res = {0};
 	struct homid_device *device = NULL;
+	bool expected = false;
 	int err;
 
 	if (!req) {
@@ -119,6 +120,25 @@ _handle_xal_connect(int sock_fd, struct homi_msg_header *hdr, void *payload, str
 		homid_log(LOG_ERR, "XAL_CONNECT: device not found: %s", req->dev_uri);
 		res.err = -ENODEV;
 		goto send_response;
+	}
+
+	if (atomic_compare_exchange_strong(&device->indexed, &expected, true)) {
+		err = xal_index(device->xal);
+		if (err) {
+			homid_log(LOG_ERR, "xal_index(): %d", err);
+			res.err = err;
+			atomic_store(&device->indexed, false);
+			goto send_response;
+		}
+
+		if (device->watchstate == HOMID_XAL_WATCHSTATE_IDLE) {
+			err = xal_watch_filesystem(device->xal, _on_xal_dirty, NULL);
+			if (err) {
+				homid_log(LOG_WARNING, "xal_watch_filesystem(): %d; filesystem watch unavailable", err);
+			} else {
+				device->watchstate = HOMID_XAL_WATCHSTATE_WATCHING;
+			}
+		}
 	}
 
 	memcpy(res.shm_name, device->shm_name, sizeof(res.shm_name));
