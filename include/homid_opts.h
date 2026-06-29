@@ -8,6 +8,7 @@ struct homid_dev_entry {
 	char uri[HOMID_DEVURI_MAXLEN];
 	char xnvme_be[HOMID_DEV_BE_MAXLEN];
 	uint32_t nsid;
+	int shm_id;
 };
 
 struct homid_opts {

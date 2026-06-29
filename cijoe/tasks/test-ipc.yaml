@@ -7,6 +7,8 @@ doc: |
 
     [device]
     uri = "/dev/nvme0n1"
+    be = "linux"
+    shm_id = 67
 
     [data]
     test_file = "/mnt/path/to/file_on_device"
@@ -19,6 +21,8 @@ steps:
     sed -i 's|devices = \[\]|devices = [ { uri = "{{ config.device.uri }}", nsid = 1} ]|' /etc/homi/homi.conf
     sed -i 's|log_level = 2|log_level = 4|' /etc/homi/homi.conf
     sed -i 's|be = "linux"|be = "{{ config.device.be }}"|' /etc/homi/homi.conf
+    sed -i 's|shm_id = 67|shm_id = {{ config.device.shm_id }}|' /etc/homi/homi.conf
+    sed -i 's|watchmode = 2|watchmode = 0|' /etc/homi/homi.conf
 
 - name: transfer
   uses: core.put

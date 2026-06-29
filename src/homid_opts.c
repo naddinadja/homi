@@ -22,7 +22,7 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 {
 	toml_result_t result;
 	toml_datum_t log_level, devices, ipc_socket;
-	toml_datum_t xnvme_be;
+	toml_datum_t xnvme_be, xnvme_shm_id;
 	toml_datum_t xal_backend, xal_watchmode, xal_file_lookupmode;
 	int err = 0;
 
@@ -73,6 +73,15 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 		goto exit;
 	}
 
+	xnvme_shm_id = toml_seek(result.toptab, "xnvme.shm_id");
+	if (xnvme_shm_id.type != TOML_INT64) {
+		homid_log(LOG_ERR, "Missing or invalid 'xnvme.shm_id' property in config");
+		err = -EINVAL;
+		goto exit;
+	}
+
+	devices = toml_seek(result.toptab, "devices");
+
 	devices = toml_seek(result.toptab, "devices");
 	if (devices.type != TOML_ARRAY) {
 		homid_log(LOG_ERR, "Missing or invalid 'devices' property in config");
@@ -114,6 +123,7 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 		}
 
 		strncpy(opts->devs[i].xnvme_be, xnvme_be.u.s, sizeof(opts->devs[i].xnvme_be) - 1);
+		opts->devs[i].shm_id = xnvme_shm_id.u.int64;
 	}
 
 	ipc_socket = toml_seek(result.toptab, "ipc_socket");

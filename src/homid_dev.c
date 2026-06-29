@@ -115,6 +115,7 @@ _xnvme_init(struct homid_dev_entry *entry, struct homid_dev *dev)
 	int err;
 
 	opts.be = entry->xnvme_be;
+	opts.shm_id = entry->shm_id;
 
 	if (entry->nsid > 0) {
 		opts.nsid = entry->nsid;
