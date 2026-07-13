@@ -28,8 +28,18 @@ on_xal_dirty(struct xal *xal, void *cb_args)
 	}
 }
 
-int
-homid_xal_setup(struct xal_opts *opts, struct homid_device *device)
+/**
+ * Setup xal for the homid_device
+ *
+ * For the given homid_device, open xal and retrieve extents through a full scan.
+ * xnvme device must be initialized first.
+ *
+ * @param opts xal_opts parsed from config file.
+ * @param device Output: device to setup.
+ * @return 0 on success, negative errno on failure.
+ */
+static int
+_xal_init(struct xal_opts *opts, struct homid_device *device)
 {
 	struct xal *xal;
 	int err;
@@ -77,8 +87,18 @@ close_xal:
 	return err;
 }
 
-int
-homid_xnvme_setup(char *uri, struct xnvme_dev **device)
+/**
+ * Setup xnvme for the homid_device
+ *
+ * For the given homid_device, initialize xnvme.
+ * Uses default xnvme_opts with "linux" as backend.
+ *
+ * @param uri URI of the device.
+ * @param device Output: device to setup.
+ * @return 0 on success, negative errno on failure.
+ */
+static int
+_xnvme_init(char *uri, struct homid_device *device)
 {
 	struct xnvme_opts opts = xnvme_opts_default();
 	struct xnvme_dev *dev;
@@ -92,7 +112,7 @@ homid_xnvme_setup(char *uri, struct xnvme_dev **device)
 		return err;
 	}
 
-	*device = dev;
+	device->dev = dev;
 	return 0;
 }
 
@@ -144,13 +164,13 @@ homid_dev_open(struct homid_opts *opts, struct homid_device **devices)
 		snprintf(devs[i].shm_name, sizeof(devs[i].shm_name), "/homid_dev%u", i);
 		xal_opts->shm_name = devs[i].shm_name;
 
-		err = homid_xnvme_setup(uri, &devs[i].dev);
+		err = _xnvme_init(uri, &devs[i]);
 		if (err) {
 			homid_log(LOG_ERR, "Failed to setup xNVMe for %s: %d", uri, err);
 			goto failed;
 		}
 
-		err = homid_xal_setup(xal_opts, &devs[i]);
+		err = _xal_init(xal_opts, &devs[i]);
 		if (err) {
 			homid_log(LOG_ERR, "Failed to setup XAL for %s: %d", uri, err);
 			goto failed;
