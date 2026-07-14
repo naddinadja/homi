@@ -124,6 +124,7 @@ int main(int argc, char **argv)
 		homid_log(LOG_CRIT, "Could not initialize the HOMI deamon");
 		goto exit;
 	}
+	free(opts.devs);
 
 	homid_log(LOG_NOTICE, "Daemon initialized");
 
@@ -149,7 +150,7 @@ exit:
 	homid_close(homid);
 	free(homid);
 	closelog();
-	free(opts.dev_uris);
+	free(opts.devs);
 
 	return err;
 }

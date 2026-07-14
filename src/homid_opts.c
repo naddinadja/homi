@@ -22,6 +22,7 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 {
 	toml_result_t result;
 	toml_datum_t log_level, devices, ipc_socket;
+	toml_datum_t xnvme_be;
 	toml_datum_t xal_backend, xal_watchmode, xal_file_lookupmode;
 	int err = 0;
 
@@ -65,8 +66,14 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 		break;
 	}
 
-	devices = toml_seek(result.toptab, "devices");
+	xnvme_be = toml_get(result.toptab, "xnvme.be");
+	if (xnvme_be.type != TOML_STRING) {
+		homid_log(LOG_ERR, "Missing or invalid 'xnvme.be' in config");
+		err = -EINVAL;
+		goto exit;
+	}
 
+	devices = toml_seek(result.toptab, "devices");
 	if (devices.type != TOML_ARRAY) {
 		homid_log(LOG_ERR, "Missing or invalid 'devices' property in config");
 		err = -EINVAL;
@@ -74,8 +81,8 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 	}
 
 	opts->ndevs = devices.u.arr.size;
-	opts->dev_uris = malloc(devices.u.arr.size * sizeof(*opts->dev_uris));
-	if (!opts->dev_uris) {
+	opts->devs = malloc(devices.u.arr.size * sizeof(*opts->devs));
+	if (!opts->devs) {
 		err = -errno;
 		homid_log(LOG_ERR, "Failed: malloc(); errno(%d)", errno);
 		goto exit;
@@ -83,14 +90,30 @@ homid_opts_from_toml(char *config_file, struct homid_opts *opts)
 
 	for (int i = 0; i < devices.u.arr.size; i++) {
 		toml_datum_t elem = devices.u.arr.elem[i];
+		toml_datum_t uri_datum, nsid_datum;
 
-		if (elem.type != TOML_STRING) {
-			homid_log(LOG_ERR, "Invalid device URI: not a string");
+		if (elem.type != TOML_TABLE) {
+			homid_log(LOG_ERR, "Invalid device entry %d: expected a table with 'uri' and 'be'", i);
 			err = -EINVAL;
 			goto exit;
 		}
 
-		strcpy(opts->dev_uris[i], elem.u.s);
+		uri_datum = toml_get(elem, "uri");
+		if (uri_datum.type != TOML_STRING) {
+			homid_log(LOG_ERR, "Invalid device entry %d: missing or invalid 'uri'", i);
+			err = -EINVAL;
+			goto exit;
+		}
+		strncpy(opts->devs[i].uri, uri_datum.u.s, sizeof(opts->devs[i].uri) - 1);
+
+		nsid_datum = toml_get(elem, "nsid");
+		if (nsid_datum.type == TOML_INT64) {
+			opts->devs[i].nsid = (int32_t)nsid_datum.u.int64;
+		} else {
+			opts->devs[i].nsid = 0;
+		}
+
+		strncpy(opts->devs[i].xnvme_be, xnvme_be.u.s, sizeof(opts->devs[i].xnvme_be) - 1);
 	}
 
 	ipc_socket = toml_seek(result.toptab, "ipc_socket");
