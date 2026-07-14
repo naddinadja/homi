@@ -27,49 +27,49 @@ struct homid_dev_xnvme {
 	struct xnvme_dev *dev;
 };
 
-struct homid_device {
+struct homid_dev {
 	struct homid_dev_xnvme homid_xnvme;
 	struct homid_dev_xal homid_xal;
 	char uri[HOMID_DEVURI_MAXLEN];
 };
 
 int
-homid_dev_xal_index(struct homid_device *device);
+homid_dev_xal_index(struct homid_dev *dev);
 
 /**
- * Cleans up array of homid_device
+ * Cleans up array of homid_dev
  *
- * For the given number of devices, clean each homid_device's xal and xvnme setups.
+ * For the given number of devices, clean each homid_dev's xal and xvnme setups.
  * Checks before freeing.
  *
  * @param ndevs		Number of devices to clean.
- * @param devices	Array of homid_device to clean.
+ * @param devices	Array of homid_dev to clean.
  */
 void
-homid_dev_close(unsigned int ndevs, struct homid_device *devices);
+homid_dev_close(unsigned int ndevs, struct homid_dev *devices);
 
 /**
- * Setup array of homid_device
+ * Setup array of homid_dev
  *
- * Allocates array of homid_device and initializes xnvme and xal for each of them.
+ * Allocates array of homid_dev and initializes xnvme and xal for each of them.
  * Uses device uri, ndevs, and xal_opts from user config options.
  *
  * @param opts		config options parsed from user config file.
- * @param devices	Output: array of homid_device to setup.
+ * @param devices	Output: array of homid_dev to setup.
  * @return			0 on success, negative errno on failure.
  */
 int
-homid_dev_open(struct homid_opts *opts, struct homid_device **devices);
+homid_dev_open(struct homid_opts *opts, struct homid_dev **devices);
 
 /**
- * Get a pointer to the homid_device from a given device URI
+ * Get a pointer to the homid_dev from a given device URI
  *
  * @param homid   Daemon state
  * @param uri     Device URI
- * @return        A pointer to the first homid_device with a matching URI, NULL if
+ * @return        A pointer to the first homid_dev with a matching URI, NULL if
  *                none is found.
  */
-struct homid_device *
+struct homid_dev *
 homid_dev_get(struct homid *homid, char *uri);
 
 #endif /* HOMID_DEV_H */

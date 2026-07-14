@@ -3,7 +3,7 @@
 
 struct homid {
   struct homid_ipc_connection *conn;
-  struct homid_device *dev;	///< Pointer to array of 'struct homid_device'
+  struct homid_dev *dev;	///< Pointer to array of 'struct homid_dev'
   unsigned int ndevs;		///< Number of devices
 };
 

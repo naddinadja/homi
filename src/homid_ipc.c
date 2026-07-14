@@ -119,7 +119,7 @@ worker(void *arg)
 	case HOMI_MSG_TYPE_XAL_CONNECT:
 		struct homi_req_xal_connect *req = (struct homi_req_xal_connect *)payload;
 		struct homi_res_xal_connect res = {0};
-		struct homid_device *device = NULL;
+		struct homid_dev *dev = NULL;
 
 		if (!req) {
 			homid_log(LOG_ERR, "Error: Payload required for XAL_CONNECT request");
@@ -127,22 +127,22 @@ worker(void *arg)
 			goto send_response;
 		}
 
-		device = homid_dev_get(homid, req->dev_uri);
+		dev = homid_dev_get(homid, req->dev_uri);
 
-		if (!device) {
+		if (!dev) {
 			homid_log(LOG_ERR, "XAL_CONNECT: device not found: %s", req->dev_uri);
 			res.err = -ENODEV;
 			goto send_response;
 		}
 
-		err = homid_dev_xal_index(device);
+		err = homid_dev_xal_index(dev);
 		if (err) {
 			homid_log(LOG_ERR, "Failed: homid_dev_xal_index()");
 			res.err = err;
 			goto send_response;
 		}
 
-		memcpy(res.shm_name, device->homid_xal.shm_name, sizeof(res.shm_name));
+		memcpy(res.shm_name, dev->homid_xal.shm_name, sizeof(res.shm_name));
 
 send_response:
 		err = homi_proto_socket_write(sock_fd, &hdr, &res, sizeof(res));
