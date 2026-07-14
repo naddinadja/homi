@@ -15,14 +15,22 @@ enum homid_dev_xal_watchstate {
 	HOMID_DEV_XAL_WATCHSTATE_WATCHING = 2, ///< Is actively listening for file changes.
 };
 
-struct homid_device {
-	struct xnvme_dev *dev;
+struct homid_dev_xal {
 	struct xal *xal;
 	bool watching;
-	char uri[HOMID_DEVURI_MAXLEN];
 	enum homid_dev_xal_watchstate watchstate;
 	_Atomic bool indexed;
 	char shm_name[64];
+};
+
+struct homid_dev_xnvme {
+	struct xnvme_dev *dev;
+};
+
+struct homid_device {
+	struct homid_dev_xnvme homid_xnvme;
+	struct homid_dev_xal homid_xal;
+	char uri[HOMID_DEVURI_MAXLEN];
 };
 
 int

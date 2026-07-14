@@ -36,20 +36,20 @@ homid_dev_xal_index(struct homid_device *device)
 
 	// Set to true when indexing starts to ensure other threads do not start
 	// indexing at the same time.
-	if (atomic_compare_exchange_strong(&device->indexed, &expected, true)) {
-		err = xal_index(device->xal);
+	if (atomic_compare_exchange_strong(&device->homid_xal.indexed, &expected, true)) {
+		err = xal_index(device->homid_xal.xal);
 		if (err) {
 			homid_log(LOG_ERR, "xal_index(): %d", err);
-			atomic_store(&device->indexed, false);
+			atomic_store(&device->homid_xal.indexed, false);
 			return err;
 		}
 
-		if (device->watchstate == HOMID_DEV_XAL_WATCHSTATE_IDLE) {
-			err = xal_watch_filesystem(device->xal, on_xal_dirty, NULL);
+		if (device->homid_xal.watchstate == HOMID_DEV_XAL_WATCHSTATE_IDLE) {
+			err = xal_watch_filesystem(device->homid_xal.xal, on_xal_dirty, NULL);
 			if (err) {
 				homid_log(LOG_WARNING, "xal_watch_filesystem(): %d; filesystem watch unavailable", err);
 			} else {
-				device->watchstate = HOMID_DEV_XAL_WATCHSTATE_WATCHING;
+				device->homid_xal.watchstate = HOMID_DEV_XAL_WATCHSTATE_WATCHING;
 			}
 		}
 	}
@@ -79,7 +79,7 @@ _xal_init(struct xal_opts *opts, struct homid_device *device)
 		return err;
 	}
 
-	err = xal_open(device->dev, &xal, opts);
+	err = xal_open(device->homid_xnvme.dev, &xal, opts);
 	if (err) {
 		homid_log(LOG_ERR, "xal_open(): %d", err);
 		return err;
@@ -92,10 +92,10 @@ _xal_init(struct xal_opts *opts, struct homid_device *device)
 	}
 
 	if (opts->watch_mode) {
-		device->watchstate = HOMID_DEV_XAL_WATCHSTATE_IDLE;
+		device->homid_xal.watchstate = HOMID_DEV_XAL_WATCHSTATE_IDLE;
 	}
 
-	device->xal = xal;
+	device->homid_xal.xal = xal;
 
 	return 0;
 
@@ -129,7 +129,7 @@ _xnvme_init(char *uri, struct homid_device *device)
 		return err;
 	}
 
-	device->dev = dev;
+	device->homid_xnvme.dev = dev;
 	return 0;
 }
 
@@ -147,13 +147,13 @@ homid_dev_close(unsigned int ndevs, struct homid_device *devices)
 			continue;
 		}
 
-		if (dev->watching) {
-			xal_stop_watching_filesystem(dev->xal);
+		if (dev->homid_xal.watching) {
+			xal_stop_watching_filesystem(dev->homid_xal.xal);
 		}
 
-		xal_close(dev->xal);
+		xal_close(dev->homid_xal.xal);
 
-		xnvme_dev_close(dev->dev);
+		xnvme_dev_close(dev->homid_xnvme.dev);
 	}
 
 	free(devices);
@@ -175,11 +175,12 @@ homid_dev_open(struct homid_opts *opts, struct homid_device **devices)
 	}
 
 	for (unsigned int i = 0; i < ndevs; i++) {
+		struct homid_device *device = &devs[i];
 		char *uri = opts->dev_uris[i];
 
 		strncpy(devs[i].uri, uri, sizeof(devs[i].uri) - 1);
-		snprintf(devs[i].shm_name, sizeof(devs[i].shm_name), "/homid_dev%u", i);
-		xal_opts->shm_name = devs[i].shm_name;
+		snprintf(device->homid_xal.shm_name, sizeof(device->homid_xal.shm_name), "/homid_dev%u", i);
+		xal_opts->shm_name = device->homid_xal.shm_name;
 
 		err = _xnvme_init(uri, &devs[i]);
 		if (err) {

@@ -142,7 +142,7 @@ worker(void *arg)
 			goto send_response;
 		}
 
-		memcpy(res.shm_name, device->shm_name, sizeof(res.shm_name));
+		memcpy(res.shm_name, device->homid_xal.shm_name, sizeof(res.shm_name));
 
 send_response:
 		err = homi_proto_socket_write(sock_fd, &hdr, &res, sizeof(res));
