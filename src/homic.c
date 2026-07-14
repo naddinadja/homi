@@ -20,6 +20,8 @@ struct homic_client {
 	char *socket_path;
 	size_t xal_count;
 	struct xal **xals;
+	size_t dev_count;
+	struct xnvme_dev **devs;
 };
 
 static struct homic_client *g_homic_client = NULL;
@@ -101,6 +103,11 @@ homic_disconnect()
 		xal_close(xal);
 	}
 	free(g_homic_client->xals);
+
+	for (size_t i = 0; i < g_homic_client->dev_count; i++) {
+		xnvme_dev_close(g_homic_client->devs[i]);
+	}
+	free(g_homic_client->devs);
 
 	free(g_homic_client);
 	g_homic_client = NULL;
@@ -196,6 +203,106 @@ homic_xal_wait(struct xal *xal)
 
 	while (xal_is_dirty(xal)) {
 		usleep(1000);
+	}
+
+	return err;
+}
+
+int
+homic_connect_xnvme(char *dev_uri, struct xnvme_opts *xnvme_opts, struct xnvme_dev **out)
+{
+	struct homi_msg_header hdr = {0};
+	struct homi_req_xnvme_connect req = {0};
+	struct homi_res_xnvme_connect *res = NULL;
+	struct xnvme_dev **new_devs;
+	struct xnvme_dev *dev;
+	size_t new_count;
+	int sock_fd = -1, err;
+
+	if (!dev_uri) {
+		return -EINVAL;
+	}
+
+	if (!xnvme_opts || !xnvme_opts->be) {
+		err = -EINVAL;
+		fprintf(stderr, "Failed: Missing or insufficient xnvme_opts; Must define a backend; err(%d)\n", err);
+		return err;
+	}
+
+	if (!g_homic_client) {
+		err = -ENOTCONN;
+		fprintf(stderr, "Failed: No connection, please call homic_connect(); err(%d)\n", err);
+		return err;
+	}
+
+	sock_fd = _connect(g_homic_client->socket_path);
+	if (sock_fd < 0) {
+		err = sock_fd;
+		fprintf(stderr, "Failed: _connect(%s); err(%d)\n", g_homic_client->socket_path, err);
+		goto exit;
+	}
+
+	strncpy(req.dev_uri, dev_uri, sizeof(req.dev_uri) - 1);
+	strncpy(req.be, xnvme_opts->be, sizeof(req.be) - 1);
+	hdr.type = HOMI_MSG_TYPE_XNVME_CONNECT;
+
+	err = homi_proto_socket_write(sock_fd, &hdr, &req, sizeof(req));
+	if (err) {
+		fprintf(stderr, "Failed: homi_proto_socket_write(); err(%d)\n", err);
+		goto exit;
+	}
+
+	err = homi_proto_socket_read(sock_fd, &hdr, (void **)&res);
+	if (err) {
+		fprintf(stderr, "Failed: homi_proto_socket_read(); err(%d)\n", err);
+		goto exit;
+	}
+	if (!res) {
+		err = -EIO;
+		fprintf(stderr, "Failed: homi_proto_socket_read(): empty response\n");
+		goto exit;
+	}
+	if (res->err) {
+		err = res->err;
+		fprintf(stderr, "Failed: daemon xnvme_connect error; err(%d)\n", err);
+		goto exit;
+	}
+
+	xnvme_opts->shm_id = res->shm_id;
+
+	free(res);
+	res = NULL;
+
+	close(sock_fd);
+	sock_fd = -1;
+
+	dev = xnvme_dev_open(dev_uri, xnvme_opts);
+	if (!dev) {
+		err = -errno;
+		fprintf(stderr, "Failed: xnvme_dev_open() as secondary; err(%d)\n", err);
+		goto exit;
+	}
+
+	new_count = g_homic_client->dev_count + 1;
+	new_devs = realloc(g_homic_client->devs, new_count * sizeof(*g_homic_client->devs));
+	if (!new_devs) {
+		err = -ENOMEM;
+		xnvme_dev_close(dev);
+		goto exit;
+	}
+
+	new_devs[new_count - 1] = dev;
+	g_homic_client->devs = new_devs;
+	g_homic_client->dev_count = new_count;
+
+	err = 0;
+	*out = dev;
+
+exit:
+	free(res);
+
+	if (sock_fd >= 0) {
+		close(sock_fd);
 	}
 
 	return err;

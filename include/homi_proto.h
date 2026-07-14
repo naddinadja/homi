@@ -11,6 +11,7 @@
 
 enum homi_msg_type {
 	HOMI_MSG_TYPE_XAL_CONNECT = 1, ///< Request xal pool info for a device
+	HOMI_MSG_TYPE_XNVME_CONNECT = 2, ///< Request xNVMe device for secondary attach
 };
 
 struct homi_req_xal_connect {
@@ -20,6 +21,16 @@ struct homi_req_xal_connect {
 struct homi_res_xal_connect {
 	int err;
 	char shm_name[64];
+};
+
+struct homi_req_xnvme_connect {
+	char dev_uri[HOMID_DEVURI_MAXLEN];
+	char be[HOMID_DEV_BE_MAXLEN];
+};
+
+struct homi_res_xnvme_connect {
+	int err;
+	int shm_id;
 };
 
 struct homi_msg_header {

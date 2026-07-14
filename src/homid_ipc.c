@@ -7,6 +7,8 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <libxnvme.h>
+
 #include <homid.h>
 #include <homid_ipc.h>
 #include <homid_log.h>
